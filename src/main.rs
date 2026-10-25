@@ -1,6 +1,13 @@
 use colored::Colorize;
 use rand::random_range;
-use std::env;
+use std::{env, error::Error, fmt};
+
+#[derive(Debug)]
+enum InvalidArgError {
+    NoArgument,
+    NonNumberArgument,
+    NonPositiveIntArgument,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 enum Suit {
@@ -16,15 +23,18 @@ struct Card {
     rank: u8,
 }
 
-const STARTING_BET_HINT: &str = "Your starting bet must be an integer above 0! Pass it as an argument to the white-queen executable.";
-
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let starting_bet: i32 = validate_starting_bet_argument(args);
-    if starting_bet == -1 {
-        // Validation failed
-        return;
-    };
+
+    // Validate argument input
+    let starting_bet: i32;
+    match validate_starting_bet_argument(args) {
+        Ok(bet) => starting_bet = bet,
+        Err(e) => {
+            println!("{}", e.to_string().red());
+            return;
+        }
+    }
 
     // Initial variables
     let mut player_hand: Vec<Card> = Vec::new();
@@ -59,25 +69,22 @@ fn main() {
 /// 1. The player entered no command line argument.
 /// 2. The player entered a negative starting bet.
 /// 3. The player entered 0 as the starting bet.
-fn validate_starting_bet_argument(args: Vec<String>) -> i32 {
+fn validate_starting_bet_argument(args: Vec<String>) -> Result<i32, InvalidArgError> {
     if args.len() < 2 {
-        println!("{}", STARTING_BET_HINT.red());
-        return -1;
+        return Err(InvalidArgError::NoArgument);
     }
 
     let starting_bet: i32;
     match args[1].trim().parse::<i32>() {
         Err(_) => {
-            println!("{}", STARTING_BET_HINT.red());
-            return -1;
+            return Err(InvalidArgError::NonNumberArgument);
         }
         Ok(num) => {
             if num <= 0 {
-                println!("{}", STARTING_BET_HINT.red());
-                return -1;
+                return Err(InvalidArgError::NonPositiveIntArgument);
             } else {
                 starting_bet = num;
-                return starting_bet;
+                return Ok(starting_bet);
             }
         }
     }
@@ -164,18 +171,45 @@ fn render_rank(rank: u8) -> String {
 
 impl Card {
     fn render(&self) -> String {
-        let symbol = match &self.suit {
-            Suit::Clubs => "♣",
-            Suit::Diamonds => "♦",
-            Suit::Hearts => "♥",
-            Suit::Spades => "♠",
-        };
-
-        let uncolored: String = format!("{} {}", symbol, render_rank(self.rank));
+        let uncolored: String = format!("{} {}", self.suit.symbol(), render_rank(self.rank));
 
         match &self.suit {
             Suit::Diamonds | Suit::Hearts => return format!("{}", uncolored.red()),
             Suit::Clubs | Suit::Spades => return format!("{}", uncolored.blue()),
+        }
+    }
+}
+
+impl Suit {
+    fn symbol(&self) -> &str {
+        match &self {
+            Suit::Clubs => "♣",
+            Suit::Diamonds => "♦",
+            Suit::Hearts => "♥",
+            Suit::Spades => "♠",
+        }
+    }
+}
+
+impl Error for InvalidArgError {}
+impl fmt::Display for InvalidArgError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InvalidArgError::NoArgument => {
+                write!(f, "No argument was provided as the starting bet!")
+            }
+            InvalidArgError::NonNumberArgument => {
+                write!(
+                    f,
+                    "The argument provided as the starting bet was not a number!"
+                )
+            }
+            InvalidArgError::NonPositiveIntArgument => {
+                write!(
+                    f,
+                    "The argument provided as the starting bet was not a positive integer!"
+                )
+            }
         }
     }
 }

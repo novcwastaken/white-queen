@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 colored = "3"
+rand = "=0.10.3"
+clearscreen = "5.0.0"

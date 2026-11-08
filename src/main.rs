@@ -30,102 +30,6 @@ struct Card {
     rank: u8,
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    // Validate argument input
-    let bankroll: i32;
-    match validate_bankroll_argument(args) {
-        Ok(bet) => bankroll = bet,
-        Err(e) => {
-            println!("{}", e.to_string().red());
-            return;
-        }
-    }
-
-    // Initial variables
-    let mut player_hand: Vec<Card> = Vec::new();
-    let mut house_hand: Vec<Card> = Vec::new();
-    let mut used_cards: Vec<Card> = Vec::new();
-
-    let mut balance: i32 = bankroll;
-    let mut is_round_ongoing: bool = true;
-    let mut is_game_ongoing: bool = true;
-
-    // Welcome
-    clearscreen::clear().unwrap();
-
-    println!("{}{}{}", "Welcome to ", "WHITE QUEEN".magenta().bold(), "!");
-    println!(
-        "{}{}{}",
-        "Your bankroll is ",
-        format!("{} Doubloon(s)", bankroll).cyan().bold(),
-        "."
-    );
-
-    // Deal hands
-    deal_hand(&mut player_hand, &mut used_cards);
-    deal_hand(&mut house_hand, &mut used_cards);
-
-    // TODO: Main game loop
-    // TODO: Ask for round wager
-
-    // Hitting loop (round loop)
-    while is_round_ongoing {
-        clearscreen::clear().unwrap();
-        println!(
-            "Balance: {}\n", // TODO: Also display current wager
-            format!("{} Doubloon(s)", balance).cyan().bold()
-        );
-
-        let house_name = if random_bool(0.05) {
-            "House M.D."
-        } else {
-            "House"
-        };
-
-        println!("Your hand: {}", render_hand(&player_hand, None));
-        println!(
-            "{}'s hand: {}\n",
-            house_name,
-            render_hand(&house_hand, Some(vec![1]))
-        );
-
-        if get_hand_sum(&house_hand) == 21 {
-            is_round_ongoing = false;
-        }
-
-        // Take input
-        match take_input() {
-            Some(PlayerAction::Hit) => {
-                player_hand.push(generate_card(&mut used_cards));
-            }
-            Some(PlayerAction::Stand) => is_round_ongoing = false,
-            None => balance += 7000, // TODO: Change this beauty
-        }
-    }
-
-    // Showdown
-    println!("@@@ --- SHOWDOWN ---");
-
-    // TODO: Start dealing cards for house
-    // TODO: If house busts, player gets double the wager back
-    // TODO: If equal, player gets the wager back
-    // TODO: If house's hand is higher, do nothing (player loses wager)
-
-    if get_hand_sum(&house_hand) == 21 {
-        // TODO: Change this (message, + add wager loss logic)
-        // TODO: Player keeps wager if they have blackjack as well
-        println!("House has blackjack! Fuck you");
-    }
-
-    println!(
-        "Your sum: {}, house sum: {}",
-        get_hand_sum(&player_hand),
-        get_hand_sum(&house_hand)
-    );
-}
-
 /// Returns whether the command-line argument provided by the player as the bankroll was valid.
 fn validate_bankroll_argument(args: Vec<String>) -> Result<i32, InvalidArgError> {
     if args.len() < 2 {
@@ -321,4 +225,100 @@ impl fmt::Display for InvalidArgError {
             }
         }
     }
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // Validate argument input
+    let bankroll: i32;
+    match validate_bankroll_argument(args) {
+        Ok(bet) => bankroll = bet,
+        Err(e) => {
+            println!("{}", e.to_string().red());
+            return;
+        }
+    }
+
+    // Initial variables
+    let mut player_hand: Vec<Card> = Vec::new();
+    let mut house_hand: Vec<Card> = Vec::new();
+    let mut used_cards: Vec<Card> = Vec::new();
+
+    let mut balance: i32 = bankroll;
+    let mut is_round_ongoing: bool = true;
+    let mut is_game_ongoing: bool = true;
+
+    // Welcome
+    clearscreen::clear().unwrap();
+
+    println!("{}{}{}", "Welcome to ", "WHITE QUEEN".magenta().bold(), "!");
+    println!(
+        "{}{}{}",
+        "Your bankroll is ",
+        format!("{} Doubloon(s)", bankroll).cyan().bold(),
+        "."
+    );
+
+    // Deal hands
+    deal_hand(&mut player_hand, &mut used_cards);
+    deal_hand(&mut house_hand, &mut used_cards);
+
+    // TODO: Main game loop
+    // TODO: Ask for round wager
+
+    // Hitting loop (round loop)
+    while is_round_ongoing {
+        clearscreen::clear().unwrap();
+        println!(
+            "Balance: {}\n", // TODO: Also display current wager
+            format!("{} Doubloon(s)", balance).cyan().bold()
+        );
+
+        let house_name = if random_bool(0.05) {
+            "House M.D."
+        } else {
+            "House"
+        };
+
+        println!("Your hand: {}", render_hand(&player_hand, None));
+        println!(
+            "{}'s hand: {}\n",
+            house_name,
+            render_hand(&house_hand, Some(vec![1]))
+        );
+
+        if get_hand_sum(&house_hand) == 21 {
+            is_round_ongoing = false;
+        }
+
+        // Take input
+        match take_input() {
+            Some(PlayerAction::Hit) => {
+                player_hand.push(generate_card(&mut used_cards));
+            }
+            Some(PlayerAction::Stand) => is_round_ongoing = false,
+            None => balance += 7000, // TODO: Change this beauty
+        }
+    }
+
+    // Showdown
+    println!("@@@ --- SHOWDOWN ---");
+
+    // TODO: Start dealing cards for house
+    // TODO: If house busts, player gets double the wager back
+    // TODO: If equal, player gets the wager back
+    // TODO: If house's hand is higher, do nothing (player loses wager)
+
+    if get_hand_sum(&house_hand) == 21 {
+        // TODO: Change this (message, + add wager loss logic)
+        // TODO: Player keeps wager if they have blackjack as well
+        println!("House has blackjack! Fuck you");
+    }
+
+    println!(
+        "Your sum: {}, house sum: {}",
+        get_hand_sum(&player_hand),
+        get_hand_sum(&house_hand)
+    );
 }

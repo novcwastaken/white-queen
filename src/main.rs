@@ -67,11 +67,14 @@ fn main() {
     deal_hand(&mut player_hand, &mut used_cards);
     deal_hand(&mut house_hand, &mut used_cards);
 
-    // Hitting loop
+    // TODO: Main game loop
+    // TODO: Ask for round wager
+
+    // Hitting loop (round loop)
     while is_round_ongoing {
         clearscreen::clear().unwrap();
         println!(
-            "Balance: {}\n",
+            "Balance: {}\n", // TODO: Also display current wager
             format!("{} Doubloon(s)", balance).cyan().bold()
         );
 
@@ -105,8 +108,14 @@ fn main() {
     // Showdown
     println!("@@@ --- SHOWDOWN ---");
 
+    // TODO: Start dealing cards for house
+    // TODO: If house busts, player gets double the wager back
+    // TODO: If equal, player gets the wager back
+    // TODO: If house's hand is higher, do nothing (player loses wager)
+
     if get_hand_sum(&house_hand) == 21 {
-        // TODO: Change this (message, + add bet loss logic)
+        // TODO: Change this (message, + add wager loss logic)
+        // TODO: Player keeps wager if they have blackjack as well
         println!("House has blackjack! Fuck you");
     }
 

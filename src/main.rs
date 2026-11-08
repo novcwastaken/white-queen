@@ -1,12 +1,19 @@
 use colored::Colorize;
-use rand::random_range;
-use std::{env, error::Error, fmt};
+use rand::{random_bool, random_range};
+use std::{env, error::Error, fmt, io, io::Write};
 
 #[derive(Debug)]
 enum InvalidArgError {
     NoArgument,
     NonNumberArgument,
     NonPositiveIntArgument,
+}
+
+#[derive(Debug, PartialEq)]
+enum PlayerAction {
+    Hit,
+    Stand,
+    // TODO: double, split
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -27,9 +34,9 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     // Validate argument input
-    let starting_bet: i32;
-    match validate_starting_bet_argument(args) {
-        Ok(bet) => starting_bet = bet,
+    let bankroll: i32;
+    match validate_bankroll_argument(args) {
+        Ok(bet) => bankroll = bet,
         Err(e) => {
             println!("{}", e.to_string().red());
             return;
@@ -41,14 +48,18 @@ fn main() {
     let mut house_hand: Vec<Card> = Vec::new();
     let mut used_cards: Vec<Card> = Vec::new();
 
+    let mut balance: i32 = bankroll;
+    let mut is_round_ongoing: bool = true;
+    let mut is_game_ongoing: bool = true;
+
     // Welcome
     clearscreen::clear().unwrap();
 
     println!("{}{}{}", "Welcome to ", "WHITE QUEEN".magenta().bold(), "!");
     println!(
         "{}{}{}",
-        "Your starting bet is ",
-        format!("{} Doubloon(s)", starting_bet).cyan().bold(),
+        "Your bankroll is ",
+        format!("{} Doubloon(s)", bankroll).cyan().bold(),
         "."
     );
 
@@ -56,25 +67,63 @@ fn main() {
     deal_hand(&mut player_hand, &mut used_cards);
     deal_hand(&mut house_hand, &mut used_cards);
 
-    // TEMP
-    println!("Player hand sum: {}", get_hand_sum(&player_hand));
-    println!("House hand sum: {}", get_hand_sum(&house_hand));
+    // Hitting loop
+    while is_round_ongoing {
+        clearscreen::clear().unwrap();
+        println!(
+            "Balance: {}\n",
+            format!("{} Doubloon(s)", balance).cyan().bold()
+        );
 
-    println!("{}", player_hand[0].render());
+        let house_name = if random_bool(0.05) {
+            "House M.D."
+        } else {
+            "House"
+        };
+
+        println!("Your hand: {}", render_hand(&player_hand, None));
+        println!(
+            "{}'s hand: {}\n",
+            house_name,
+            render_hand(&house_hand, Some(vec![1]))
+        );
+
+        if get_hand_sum(&house_hand) == 21 {
+            is_round_ongoing = false;
+        }
+
+        // Take input
+        match take_input() {
+            Some(PlayerAction::Hit) => {
+                player_hand.push(generate_card(&mut used_cards));
+            }
+            Some(PlayerAction::Stand) => is_round_ongoing = false,
+            None => balance += 7000, // TODO: Change this beauty
+        }
+    }
+
+    // Showdown
+    println!("@@@ --- SHOWDOWN ---");
+
+    if get_hand_sum(&house_hand) == 21 {
+        // TODO: Change this (message, + add bet loss logic)
+        println!("House has blackjack! Fuck you");
+    }
+
+    println!(
+        "Your sum: {}, house sum: {}",
+        get_hand_sum(&player_hand),
+        get_hand_sum(&house_hand)
+    );
 }
 
-/// Returns -1 if the validation failed, and the starting bet otherwise.
-///
-/// The validation can fail for one of three reasons:
-/// 1. The player entered no command line argument.
-/// 2. The player entered a negative starting bet.
-/// 3. The player entered 0 as the starting bet.
-fn validate_starting_bet_argument(args: Vec<String>) -> Result<i32, InvalidArgError> {
+/// Returns whether the command-line argument provided by the player as the bankroll was valid.
+fn validate_bankroll_argument(args: Vec<String>) -> Result<i32, InvalidArgError> {
     if args.len() < 2 {
         return Err(InvalidArgError::NoArgument);
     }
 
-    let starting_bet: i32;
+    let bankroll: i32;
     match args[1].trim().parse::<i32>() {
         Err(_) => {
             return Err(InvalidArgError::NonNumberArgument);
@@ -83,14 +132,14 @@ fn validate_starting_bet_argument(args: Vec<String>) -> Result<i32, InvalidArgEr
             if num <= 0 {
                 return Err(InvalidArgError::NonPositiveIntArgument);
             } else {
-                starting_bet = num;
-                return Ok(starting_bet);
+                bankroll = num;
+                return Ok(bankroll);
             }
         }
     }
 }
 
-/// Can be used to deal cards for both the player and the house.
+/// Deals two cards into the given hand.
 fn deal_hand(hand: &mut Vec<Card>, used_cards: &mut Vec<Card>) {
     let new_card_1 = generate_card(used_cards);
     let new_card_2 = generate_card(used_cards);
@@ -139,9 +188,7 @@ fn get_hand_sum(hand: &Vec<Card>) -> u8 {
     sum
 }
 
-/// Returns the true value of a given card, to be used in the sum calculation.
-///
-/// All face cards evaluate to 10, and aces evaluate to 11 by default.
+/// Returns the true value of a given card. All face cards evaluate to 10, and aces evaluate to 11 by default.
 fn evaluate_card(card: &Card) -> u8 {
     match card.rank {
         1 => 11,
@@ -150,6 +197,7 @@ fn evaluate_card(card: &Card) -> u8 {
     }
 }
 
+/// Returns a random suit.
 fn get_random_suit() -> Suit {
     match random_range(0..=3) {
         0 => Suit::Clubs,
@@ -159,6 +207,7 @@ fn get_random_suit() -> Suit {
     }
 }
 
+/// Returns the number or letter for the given rank (A for aces, J, Q and K for face cards).
 fn render_rank(rank: u8) -> String {
     return match rank {
         1 => String::from("A"),
@@ -169,8 +218,62 @@ fn render_rank(rank: u8) -> String {
     };
 }
 
+/// Returns a formatted sequence of the provided hand, optionally with the cards at the provided indices being hidden.
+fn render_hand(hand: &Vec<Card>, hidden_indices: Option<Vec<usize>>) -> String {
+    let mut sum: u8 = get_hand_sum(hand);
+
+    let hidden_indices: Vec<usize> = match hidden_indices {
+        Some(v) => v,
+        None => Vec::new(),
+    };
+
+    let mut rendered_cards: Vec<String> = Vec::new();
+    for (i, card) in hand.iter().enumerate() {
+        if hidden_indices.contains(&i) {
+            rendered_cards.push(format!("{}", "??".magenta()));
+            sum -= evaluate_card(&hand[i]);
+        } else {
+            rendered_cards.push(card.render(false));
+        }
+    }
+
+    format!(
+        "{} {}",
+        rendered_cards.join(", "),
+        format!(
+            "({sum}{})",
+            if !hidden_indices.is_empty() { "?" } else { "" }
+        )
+        .dimmed()
+    )
+}
+
+/// Takes input from the player for the current round, and returns the corresponding PlayerAction if it was valid and None otherwise.
+fn take_input() -> Option<PlayerAction> {
+    let mut player_input = String::new();
+
+    print!("Enter action (h/s): ");
+    let _ = io::stdout().flush();
+
+    io::stdin()
+        .read_line(&mut player_input)
+        .expect("Failed to read input!");
+
+    player_input = String::from(player_input.trim().to_ascii_lowercase());
+
+    match player_input.as_str() {
+        "h" => Some(PlayerAction::Hit),
+        "s" => Some(PlayerAction::Stand),
+        _ => None,
+    }
+}
+
 impl Card {
-    fn render(&self) -> String {
+    fn render(&self, hidden: bool) -> String {
+        if hidden {
+            return format!("{}", "??".magenta());
+        }
+
         let uncolored: String = format!("{} {}", self.suit.symbol(), render_rank(self.rank));
 
         match &self.suit {
@@ -196,18 +299,15 @@ impl fmt::Display for InvalidArgError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             InvalidArgError::NoArgument => {
-                write!(f, "No argument was provided as the starting bet!")
+                write!(f, "No argument was provided as the bankroll!")
             }
             InvalidArgError::NonNumberArgument => {
-                write!(
-                    f,
-                    "The argument provided as the starting bet was not a number!"
-                )
+                write!(f, "The argument provided as the bankroll was not a number!")
             }
             InvalidArgError::NonPositiveIntArgument => {
                 write!(
                     f,
-                    "The argument provided as the starting bet was not a positive integer!"
+                    "The argument provided as the bankroll was not a positive integer!"
                 )
             }
         }

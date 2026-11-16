@@ -311,7 +311,7 @@ fn main() {
     println!(
         "{}{}{}",
         "Your bankroll is ",
-        format!("{} Doubloon(s)", bankroll).cyan().bold(),
+        format!("{} Doubloon", bankroll).cyan().bold(),
         ".\n"
     );
 
@@ -327,10 +327,7 @@ fn main() {
         println!("{}\n", "WHITE QUEEN".magenta().bold());
 
         // Print balance
-        println!(
-            "Balance: {}",
-            format!("{} Doubloon(s)", balance).cyan().bold()
-        );
+        println!("Balance: {}", format!("{} Doubloon", balance).cyan().bold());
 
         // Take wager input
         current_wager = take_wager_input(balance);
@@ -347,14 +344,11 @@ fn main() {
             deal_new_hand(&mut house_hand, &mut used_cards);
 
             // Display balance & wager
-            println!(
-                "Balance: {}",
-                format!("{} Doubloon(s)", balance).cyan().bold(),
-            );
+            println!("Balance: {}", format!("{} Doubloon", balance).cyan().bold(),);
 
             println!(
                 "Wager: {}\n",
-                format!("{} Doubloon(s)", current_wager).yellow().bold(),
+                format!("{} Doubloon", current_wager).yellow().bold(),
             );
 
             // Tomfoolery
@@ -428,14 +422,14 @@ fn main() {
                     println!("{}", "You have a blackjack!".green().bold());
                     println!(
                         "You won {}, instantly getting back double your wager!",
-                        format!("{} Doubloon(s)", current_wager).cyan().bold()
+                        format!("{} Doubloon", current_wager).cyan().bold()
                     );
                 }
                 RoundState::HouseBlackjack => {
                     println!("{}", "The house has a blackjack!".red().bold());
                     println!(
                         "You lost your wager of {} instantly.",
-                        format!("{} Doubloon(s)", current_wager).cyan().bold()
+                        format!("{} Doubloon", current_wager).cyan().bold()
                     );
                 }
                 RoundState::Push => {
@@ -449,7 +443,7 @@ fn main() {
                     );
                     println!(
                         "You instantly got back your wager of {}.",
-                        format!("{} Doubloon(s)", current_wager).cyan().bold()
+                        format!("{} Doubloon", current_wager).cyan().bold()
                     );
                 }
                 _ => (),

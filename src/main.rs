@@ -205,6 +205,9 @@ fn take_action_input() -> Option<PlayerAction> {
 
     player_input = String::from(player_input.trim().to_ascii_lowercase());
 
+    // Valid action inputs
+    while "hs".contains(player_input.as_str()) {}
+
     match player_input.as_str() {
         "h" => Some(PlayerAction::Hit),
         "s" => Some(PlayerAction::Stand),
@@ -311,7 +314,7 @@ fn main() {
     println!(
         "{}{}{}",
         "Your bankroll is ",
-        format!("{} Doubloon", bankroll).cyan().bold(),
+        format!("{} Doubloons", bankroll).cyan().bold(),
         ".\n"
     );
 
@@ -321,34 +324,40 @@ fn main() {
     io::stdin().read_line(&mut press_enter_input).unwrap();
 
     // Game loop (until exit)
-    while is_game_ongoing {
+    'game_ongoing: while is_game_ongoing {
         // Clear & title
         clearscreen::clear().unwrap();
         println!("{}\n", "WHITE QUEEN".magenta().bold());
 
         // Print balance
-        println!("Balance: {}", format!("{} Doubloon", balance).cyan().bold());
+        println!(
+            "Balance: {}",
+            format!("{} Doubloons", balance).cyan().bold()
+        );
 
         // Take wager input
         current_wager = take_wager_input(balance);
         balance -= current_wager;
 
+        // Deal hands
+        deal_new_hand(&mut player_hand, &mut used_cards);
+        deal_new_hand(&mut house_hand, &mut used_cards);
+
         // Hitting loop (round loop)
-        while round_state == RoundState::Ongoing {
+        'round_ongoing: while round_state == RoundState::Ongoing {
             // Clear & title
             clearscreen::clear().unwrap();
             println!("{}\n", "WHITE QUEEN".magenta().bold());
 
-            // Deal hands
-            deal_new_hand(&mut player_hand, &mut used_cards);
-            deal_new_hand(&mut house_hand, &mut used_cards);
-
             // Display balance & wager
-            println!("Balance: {}", format!("{} Doubloon", balance).cyan().bold(),);
+            println!(
+                "Balance: {}",
+                format!("{} Doubloons", balance).cyan().bold(),
+            );
 
             println!(
                 "Wager: {}\n",
-                format!("{} Doubloon", current_wager).yellow().bold(),
+                format!("{} Doubloons", current_wager).yellow().bold(),
             );
 
             // Tomfoolery
@@ -369,11 +378,6 @@ fn main() {
             // Update round state for player/house blackjack & push
             // TODO: Also check if player has blackjack right away, and also in the push check
             // TODO: (introduce new variable `has_hit` and check if it's false) (not `hit_count: i8` because a bool is more memory-efficient)
-            if get_hand_sum(&player_hand) == 21 && get_hand_sum(&house_hand) == 21 {
-                round_state = RoundState::Push;
-                //break;
-            }
-
             if get_hand_sum(&player_hand) == 21 {
                 round_state = RoundState::PlayerBlackjack;
                 //break;
@@ -384,16 +388,23 @@ fn main() {
                 //break;
             }
 
+            if get_hand_sum(&player_hand) == 21 && get_hand_sum(&house_hand) == 21 {
+                round_state = RoundState::Push;
+                //break;
+            }
+
             // Take input
             match take_action_input() {
                 Some(PlayerAction::Hit) => {
                     player_hand.push(generate_card(&mut used_cards));
+                    println!("{}", render_hand(&player_hand, None));
 
                     // Bust
                     if get_hand_sum(&player_hand) > 21 {
                         round_state = RoundState::PlayerBust;
                         //break;
                     } else {
+                        println!(get_hand_sum(&player_hand));
                         continue;
                     }
                 }
@@ -422,14 +433,14 @@ fn main() {
                     println!("{}", "You have a blackjack!".green().bold());
                     println!(
                         "You won {}, instantly getting back double your wager!",
-                        format!("{} Doubloon", current_wager).cyan().bold()
+                        format!("{} Doubloons", current_wager).cyan().bold()
                     );
                 }
                 RoundState::HouseBlackjack => {
                     println!("{}", "The house has a blackjack!".red().bold());
                     println!(
                         "You lost your wager of {} instantly.",
-                        format!("{} Doubloon", current_wager).cyan().bold()
+                        format!("{} Doubloons", current_wager).cyan().bold()
                     );
                 }
                 RoundState::Push => {
@@ -443,7 +454,7 @@ fn main() {
                     );
                     println!(
                         "You instantly got back your wager of {}.",
-                        format!("{} Doubloon", current_wager).cyan().bold()
+                        format!("{} Doubloons", current_wager).cyan().bold()
                     );
                 }
                 _ => (),
@@ -455,12 +466,12 @@ fn main() {
             // TODO: If equal, player gets the wager back
             // TODO: If house's hand is higher, do nothing (player loses wager)
 
-            match round_state {
-                ref other => {
-                    dbg!(other);
-                    panic!("@@@ tf happened???");
-                }
-            }
+            // match round_state {
+            //     ref other => {
+            //         dbg!(other);
+            //         panic!("@@@ tf happened???");
+            //     }
+            // }
 
             println!(
                 "@@@ Your sum: {}, house sum: {}",
@@ -486,7 +497,7 @@ fn main() {
                 match another_round_input.to_lowercase().as_str() {
                     "y" | "" => {
                         round_state = RoundState::Ongoing;
-                        break;
+                        break 'round_ongoing;
                     }
                     "n" => {
                         // TODO: Update game exit type, handle exit at the bottom

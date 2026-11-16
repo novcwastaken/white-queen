@@ -195,18 +195,17 @@ fn render_hand(hand: &Vec<Card>, hidden_indices: Option<Vec<usize>>) -> String {
 fn take_action_input() -> Option<PlayerAction> {
     let mut player_input = String::new();
 
-    // TODO: Harass the player until they input a valid action
-    print!("Enter action [h/s]: ");
-    io::stdout().flush().unwrap();
-
-    io::stdin()
-        .read_line(&mut player_input)
-        .expect("Failed to read input!");
-
-    player_input = String::from(player_input.trim().to_ascii_lowercase());
-
     // Valid action inputs
-    while "hs".contains(player_input.as_str()) {}
+    while !("hs".contains(player_input.as_str())) {
+        print!("Enter action [h/s]: ");
+        io::stdout().flush().unwrap();
+
+        io::stdin()
+            .read_line(&mut player_input)
+            .expect("Failed to read input!");
+
+        player_input = String::from(player_input.trim().to_ascii_lowercase());
+    }
 
     match player_input.as_str() {
         "h" => Some(PlayerAction::Hit),
@@ -404,8 +403,7 @@ fn main() {
                         round_state = RoundState::PlayerBust;
                         //break;
                     } else {
-                        println!(get_hand_sum(&player_hand));
-                        continue;
+                        continue 'round_ongoing;
                     }
                 }
                 Some(PlayerAction::Stand) => {

@@ -195,8 +195,7 @@ fn render_hand(hand: &Vec<Card>, hidden_indices: Option<Vec<usize>>) -> String {
 fn take_action_input() -> Option<PlayerAction> {
     let mut player_input = String::new();
 
-    // Valid action inputs
-    while !("hs".contains(player_input.as_str())) {
+    while player_input == "" || !("hs".contains(player_input.as_str())) {
         print!("Enter action [h/s]: ");
         io::stdout().flush().unwrap();
 

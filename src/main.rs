@@ -13,7 +13,8 @@ enum InvalidArgError {
 enum PlayerAction {
     Hit,
     Stand,
-    // TODO: double, split
+    Double,
+    Split,
 }
 
 #[derive(Debug, PartialEq)]
@@ -193,20 +194,21 @@ fn render_hand(hand: &Vec<Card>, hidden_indices: Option<Vec<usize>>) -> String {
 
 /// Takes action input from the player for the current round, and returns the corresponding PlayerAction if it was valid and None otherwise.
 fn take_action_input() -> Option<PlayerAction> {
-    let mut player_input = String::new();
+    let mut input = String::new();
 
-    while player_input == "" || !("hs".contains(player_input.as_str())) {
+    while input == "" || !("hs".contains(input.as_str())) {
         print!("Enter action [h/s]: ");
         io::stdout().flush().unwrap();
 
+        input.clear();
         io::stdin()
-            .read_line(&mut player_input)
+            .read_line(&mut input)
             .expect("Failed to read input!");
 
-        player_input = String::from(player_input.trim().to_ascii_lowercase());
+        input = String::from(input.trim().to_ascii_lowercase());
     }
 
-    match player_input.as_str() {
+    match input.as_str() {
         "h" => Some(PlayerAction::Hit),
         "s" => Some(PlayerAction::Stand),
         _ => None,
@@ -222,6 +224,7 @@ fn take_wager_input(balance: i32) -> i32 {
         print!("Wager: ");
         io::stdout().flush().unwrap();
 
+        input.clear();
         io::stdin()
             .read_line(&mut input)
             .expect("Failed to read input!");
@@ -341,6 +344,56 @@ fn main() {
         deal_new_hand(&mut player_hand, &mut used_cards);
         deal_new_hand(&mut house_hand, &mut used_cards);
 
+        // Update round state for player/house blackjack & push
+        // TODO: Add double (introduce new variable `has_hit` and check if it's false) (not `hit_count: i8` because a bool is more memory-efficient)
+        if get_hand_sum(&player_hand) == 21 {
+            round_state = RoundState::PlayerBlackjack;
+        }
+
+        if get_hand_sum(&house_hand) == 21 {
+            round_state = RoundState::HouseBlackjack;
+        }
+
+        if get_hand_sum(&player_hand) == 21 && get_hand_sum(&house_hand) == 21 {
+            round_state = RoundState::Push;
+        }
+
+        // Handle player blackjack, house blackjack, and push
+        // TODO: Move this to be between deal and input
+        match round_state {
+            RoundState::PlayerBlackjack => {
+                balance += current_wager * 2;
+
+                println!("{}", "You have a blackjack!".green().bold());
+                println!(
+                    "You won {}, instantly getting back double your wager!",
+                    format!("{} Doubloons", current_wager).cyan().bold()
+                );
+            }
+            RoundState::HouseBlackjack => {
+                println!("{}", "The house has a blackjack!".red().bold());
+                println!(
+                    "You lost your wager of {} instantly.",
+                    format!("{} Doubloons", current_wager).cyan().bold()
+                );
+            }
+            //             RoundState::Push => {
+            //                 balance += current_wager;
+            //
+            //                 println!(
+            //                     "{}",
+            //                     "It's a push! Both you and the house have blackjacks."
+            //                         .yellow()
+            //                         .bold()
+            //                 );
+            //                 println!(
+            //                     "You instantly got back your wager of {}.",
+            //                     format!("{} Doubloons", current_wager).cyan().bold()
+            //                 );
+            //             }
+            _ => (),
+        }
+
         // Hitting loop (round loop)
         'round_ongoing: while round_state == RoundState::Ongoing {
             // Clear & title
@@ -373,24 +426,6 @@ fn main() {
                 render_hand(&house_hand, Some(vec![1]))
             );
 
-            // Update round state for player/house blackjack & push
-            // TODO: Also check if player has blackjack right away, and also in the push check
-            // TODO: (introduce new variable `has_hit` and check if it's false) (not `hit_count: i8` because a bool is more memory-efficient)
-            if get_hand_sum(&player_hand) == 21 {
-                round_state = RoundState::PlayerBlackjack;
-                //break;
-            }
-
-            if get_hand_sum(&house_hand) == 21 {
-                round_state = RoundState::HouseBlackjack;
-                //break;
-            }
-
-            if get_hand_sum(&player_hand) == 21 && get_hand_sum(&house_hand) == 21 {
-                round_state = RoundState::Push;
-                //break;
-            }
-
             // Take input
             match take_action_input() {
                 Some(PlayerAction::Hit) => {
@@ -410,7 +445,7 @@ fn main() {
                     //break; // Completely unnecessary but cool break statement
                 }
                 // TODO: Change this beauty (it won't be needed once take_action_input() is updated because the player will be violently harassed and beaten with a whip until they enter either `h` or `s`)
-                None => balance += 7000,
+                _ => (),
             }
 
             // Showdown
@@ -421,54 +456,11 @@ fn main() {
             clearscreen::clear().unwrap();
             println!("{}", "ROUND OVER!".magenta().bold());
 
-            // Handle player blackjack, house blackjack, and push
-            // TODO: Move this to be between deal and input
-            match round_state {
-                RoundState::PlayerBlackjack => {
-                    balance += current_wager * 2;
-
-                    println!("{}", "You have a blackjack!".green().bold());
-                    println!(
-                        "You won {}, instantly getting back double your wager!",
-                        format!("{} Doubloons", current_wager).cyan().bold()
-                    );
-                }
-                RoundState::HouseBlackjack => {
-                    println!("{}", "The house has a blackjack!".red().bold());
-                    println!(
-                        "You lost your wager of {} instantly.",
-                        format!("{} Doubloons", current_wager).cyan().bold()
-                    );
-                }
-                RoundState::Push => {
-                    balance += current_wager;
-
-                    println!(
-                        "{}",
-                        "It's a push! Both you and the house have blackjacks."
-                            .yellow()
-                            .bold()
-                    );
-                    println!(
-                        "You instantly got back your wager of {}.",
-                        format!("{} Doubloons", current_wager).cyan().bold()
-                    );
-                }
-                _ => (),
-            }
-
             // TODO: Start dealing cards for house
             // TODO: If house busts, player gets double the wager back
 
             // TODO: If equal, player gets the wager back
             // TODO: If house's hand is higher, do nothing (player loses wager)
-
-            // match round_state {
-            //     ref other => {
-            //         dbg!(other);
-            //         panic!("@@@ tf happened???");
-            //     }
-            // }
 
             println!(
                 "@@@ Your sum: {}, house sum: {}",
@@ -501,7 +493,7 @@ fn main() {
                         println!("@@@ user exited");
                         is_game_ongoing = false;
 
-                        break;
+                        break 'round_ongoing;
                     }
                     _ => (),
                 };

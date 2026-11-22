@@ -1,6 +1,8 @@
+use clearscreen::clear;
 use colored::Colorize;
 use rand::{random_bool, random_range};
 use std::{env, error::Error, fmt, io, io::Write};
+use strip_indent::strip_indent;
 
 #[derive(Debug)]
 enum InvalidArgError {
@@ -35,6 +37,9 @@ enum RoundState {
     HouseBlackjack,
 
     // Both the player and the house have a blackjack, so the player gets the wager back
+    BothBlackjack,
+
+    // Both the player and the house have the same hand sum
     Push,
 }
 
@@ -238,6 +243,44 @@ fn take_wager_input(balance: i32) -> i32 {
     wager
 }
 
+/// Waits for the player to press enter to continue.
+fn await_enter() {
+    print!("{}", "Press [ENTER] to continue...".white().dimmed());
+    io::stdout().flush().unwrap();
+    let mut press_enter_input = String::new();
+    io::stdin().read_line(&mut press_enter_input).unwrap();
+}
+
+/// Shorthand for clearing the screen.
+fn clear_screen() {
+    clearscreen::clear().unwrap();
+}
+
+/// Shorthand for rendering and printing both the player and house hands.
+fn print_both_hands(player_hand: &Vec<Card>, house_hand: &Vec<Card>, house_hole_card_hidden: bool) {
+    // Tomfoolery
+    let house_name = if random_bool(0.05) {
+        "House M.D."
+    } else {
+        "House"
+    };
+
+    // Display hands
+    println!("Your hand: {}", render_hand(&player_hand, None));
+    println!(
+        "{}'s hand: {}\n",
+        house_name,
+        render_hand(
+            &house_hand,
+            if house_hole_card_hidden {
+                Some(vec![1])
+            } else {
+                None
+            }
+        )
+    );
+}
+
 impl Card {
     fn render(&self, hidden: bool) -> String {
         if hidden {
@@ -285,6 +328,24 @@ impl fmt::Display for InvalidArgError {
 }
 
 fn main() {
+    let mut banner: String = String::from(
+        "
+   .------..------..------..------..------.     .------..------..------..------..------.
+   |W.--. ||H.--. ||I.--. ||T.--. ||E.--. |.-.  |Q.--. ||U.--. ||E.--. ||E.--. ||N.--. |
+   | :/\\: || :/\\: || (\\/) || :/\\: || (\\/) ((5)) | (\\/) || (\\/) || (\\/) || (\\/) || :(): |
+   | :\\/: || (__) || :\\/: || (__) || :\\/: |'-.-.| :\\/: || :\\/: || :\\/: || :\\/: || ()() |
+   | '--'W|| '--'H|| '--'I|| '--'T|| '--'E| ((1)) '--'Q|| '--'U|| '--'E|| '--'E|| '--'N|
+   `------'`------'`------'`------'`------'  '-'`------'`------'`------'`------'`------'
+    ",
+    );
+
+    for letter in "WHITEQUN".chars() {
+        banner = banner.replace(
+            letter,
+            format!("{}", letter.to_string().magenta().bold()).as_str(),
+        );
+    }
+
     let args: Vec<String> = env::args().collect();
 
     // Validate argument input
@@ -309,7 +370,8 @@ fn main() {
     let mut is_game_ongoing: bool = true;
 
     // Welcome
-    clearscreen::clear().unwrap();
+    clear_screen();
+    println!("{}", banner);
 
     println!("{}{}{}", "Welcome to ", "WHITE QUEEN".magenta().bold(), "!");
     println!(
@@ -319,21 +381,18 @@ fn main() {
         ".\n"
     );
 
-    print!("Press [ENTER] to continue...");
-    io::stdout().flush().unwrap();
-    let mut press_enter_input = String::new();
-    io::stdin().read_line(&mut press_enter_input).unwrap();
+    await_enter();
 
     // Game loop (until exit)
     'game_ongoing: while is_game_ongoing {
         // Clear & title
-        clearscreen::clear().unwrap();
-        println!("{}\n", "WHITE QUEEN".magenta().bold());
+        clear_screen();
+        println!("{}", banner);
 
         // Print balance
         println!(
             "Balance: {}",
-            format!("{} Doubloons", balance).cyan().bold()
+            format!("{} Doubloons", balance).cyan().bold() // TODO: Display most recent win/loss (e.g. +500 in green or -300 in red)
         );
 
         // Take wager input
@@ -344,61 +403,94 @@ fn main() {
         deal_new_hand(&mut player_hand, &mut used_cards);
         deal_new_hand(&mut house_hand, &mut used_cards);
 
-        // Update round state for player/house blackjack & push
+        // * TEMP: Rig hands to test blackjack matching
+        //         player_hand[0] = Card {
+        //             rank: 10,
+        //             suit: Suit::Hearts,
+        //         };
+        //
+        //         player_hand[1] = Card {
+        //             rank: 1,
+        //             suit: Suit::Clubs,
+        //         };
+        //
+        //         house_hand[0] = Card {
+        //             rank: 10,
+        //             suit: Suit::Diamonds,
+        //         };
+        //
+        //         house_hand[1] = Card {
+        //             rank: 1,
+        //             suit: Suit::Spades,
+        //         };
+
         // TODO: Add double (introduce new variable `has_hit` and check if it's false) (not `hit_count: i8` because a bool is more memory-efficient)
-        if get_hand_sum(&player_hand) == 21 {
-            round_state = RoundState::PlayerBlackjack;
-        }
 
-        if get_hand_sum(&house_hand) == 21 {
-            round_state = RoundState::HouseBlackjack;
-        }
-
-        if get_hand_sum(&player_hand) == 21 && get_hand_sum(&house_hand) == 21 {
-            round_state = RoundState::Push;
+        // Update round state for player/house/both blackjack
+        match (get_hand_sum(&player_hand), get_hand_sum(&house_hand)) {
+            (21, 21) => round_state = RoundState::BothBlackjack,
+            (21, _) => round_state = RoundState::PlayerBlackjack,
+            (_, 21) => round_state = RoundState::HouseBlackjack,
+            _ => (),
         }
 
         // Handle player blackjack, house blackjack, and push
-        // TODO: Move this to be between deal and input
-        match round_state {
-            RoundState::PlayerBlackjack => {
-                balance += current_wager * 2;
+        if vec![
+            RoundState::BothBlackjack,
+            RoundState::PlayerBlackjack,
+            RoundState::HouseBlackjack,
+        ]
+        .contains(&round_state)
+        {
+            // Clear & title
+            clear_screen();
+            println!("{}", banner);
 
-                println!("{}", "You have a blackjack!".green().bold());
-                println!(
-                    "You won {}, instantly getting back double your wager!",
-                    format!("{} Doubloons", current_wager).cyan().bold()
-                );
+            match round_state {
+                RoundState::PlayerBlackjack => {
+                    balance += current_wager * 2;
+
+                    println!("{}", "You have a blackjack!".green().bold());
+                    println!(
+                        "You won {}, instantly getting back double your wager!",
+                        format!("{} Doubloons", current_wager).cyan().bold()
+                    );
+                }
+                RoundState::HouseBlackjack => {
+                    println!("{}", "The house has a blackjack!".red().bold());
+                    println!(
+                        "You lost your wager of {} instantly.",
+                        format!("{} Doubloons", current_wager).cyan().bold()
+                    );
+                }
+                RoundState::BothBlackjack => {
+                    balance += current_wager;
+
+                    println!(
+                        "{}",
+                        "It's a push! Both you and the house have blackjacks."
+                            .yellow()
+                            .bold()
+                    );
+                    println!(
+                        "You instantly got back your wager of {}.",
+                        format!("{} Doubloons", current_wager).cyan().bold()
+                    );
+                }
+                _ => (),
             }
-            RoundState::HouseBlackjack => {
-                println!("{}", "The house has a blackjack!".red().bold());
-                println!(
-                    "You lost your wager of {} instantly.",
-                    format!("{} Doubloons", current_wager).cyan().bold()
-                );
-            }
-            //             RoundState::Push => {
-            //                 balance += current_wager;
-            //
-            //                 println!(
-            //                     "{}",
-            //                     "It's a push! Both you and the house have blackjacks."
-            //                         .yellow()
-            //                         .bold()
-            //                 );
-            //                 println!(
-            //                     "You instantly got back your wager of {}.",
-            //                     format!("{} Doubloons", current_wager).cyan().bold()
-            //                 );
-            //             }
-            _ => (),
+
+            println!();
+            print_both_hands(&player_hand, &house_hand, false);
+
+            await_enter();
         }
 
         // Hitting loop (round loop)
         'round_ongoing: while round_state == RoundState::Ongoing {
             // Clear & title
-            clearscreen::clear().unwrap();
-            println!("{}\n", "WHITE QUEEN".magenta().bold());
+            clear_screen();
+            println!("{}", banner);
 
             // Display balance & wager
             println!(
@@ -411,20 +503,7 @@ fn main() {
                 format!("{} Doubloons", current_wager).yellow().bold(),
             );
 
-            // Tomfoolery
-            let house_name = if random_bool(0.05) {
-                "House M.D."
-            } else {
-                "House"
-            };
-
-            // Display hands
-            println!("Your hand: {}", render_hand(&player_hand, None));
-            println!(
-                "{}'s hand: {}\n",
-                house_name,
-                render_hand(&house_hand, Some(vec![1]))
-            );
+            print_both_hands(&player_hand, &house_hand, true);
 
             // Take input
             match take_action_input() {
@@ -435,25 +514,19 @@ fn main() {
                     // Bust
                     if get_hand_sum(&player_hand) > 21 {
                         round_state = RoundState::PlayerBust;
-                        //break;
                     } else {
                         continue 'round_ongoing;
                     }
                 }
                 Some(PlayerAction::Stand) => {
                     round_state = RoundState::PlayerStand;
-                    //break; // Completely unnecessary but cool break statement
                 }
-                // TODO: Change this beauty (it won't be needed once take_action_input() is updated because the player will be violently harassed and beaten with a whip until they enter either `h` or `s`)
                 _ => (),
             }
 
             // Showdown
-            // if round_state == RoundState::Ongoing {
-            //     continue;
-            // }
-
-            clearscreen::clear().unwrap();
+            clear_screen();
+            println!("{}", banner);
             println!("{}", "ROUND OVER!".magenta().bold());
 
             // TODO: Start dealing cards for house

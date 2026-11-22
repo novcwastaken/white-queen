@@ -221,6 +221,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256"
 
 [[package]]
+name = "strip-indent"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04b48ac3f8a1be17117c838b98ad44116c43d16f6bc9cfa6ab3abe8e74a9b6fb"
+
+[[package]]
 name = "syn"
 version = "3.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -285,6 +291,7 @@ dependencies = [
  "clearscreen",
  "colored",
  "rand 0.10.3",
+ "strip-indent",
 ]
 
 [[package]]

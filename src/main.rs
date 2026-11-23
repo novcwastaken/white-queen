@@ -562,7 +562,7 @@ fn main() {
                 }
             }
 
-            // Update the player's balance according to the round's outcome.
+            // Update the player's balance according to the round's outcome (payout).
             // Only the PlayerWin, HouseBust and Push variants need to be handled,
             // since the wager is already deducted when it's entered. Therefore,
             // when it's a push, the player gets their wager back, and if they win
@@ -592,6 +592,7 @@ fn main() {
                 print!("Another round? [Y/n]: ");
                 io::stdout().flush().unwrap();
 
+                another_round_input.clear();
                 io::stdin()
                     .read_line(&mut another_round_input)
                     .expect("Failed to read input!");

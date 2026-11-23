@@ -24,11 +24,11 @@ enum RoundState {
     // The round is still going - the player is still hitting
     Ongoing,
 
-    // Player hit and went above 21
-    PlayerBust,
-
     // Player stood - no other players to wait for, so we proceed to the showdown
     PlayerStand,
+
+    // Player hit and went above 21
+    PlayerBust,
 
     // Player has a blackjack, instant win
     PlayerBlackjack,
@@ -38,6 +38,15 @@ enum RoundState {
 
     // Both the player and the house have a blackjack, so the player gets the wager back
     BothBlackjack,
+
+    // The player's sum was higher than the house's
+    PlayerWin,
+
+    // The house's sum was higher than the player's
+    HouseWin,
+
+    // While dealing cards up until 17, the house went abouve 21
+    HouseBust,
 
     // Both the player and the house have the same hand sum
     Push,
@@ -532,11 +541,13 @@ fn main() {
             println!("{}", banner);
             println!("{}", "ROUND OVER!".magenta().bold());
 
-            // TODO: Start dealing cards for house
+            // Start dealing cards for house
             // TODO: If house busts, player gets double the wager back
 
             // TODO: If equal, player gets the wager back
             // TODO: If house's hand is higher, do nothing (player loses wager)
+
+            dbg!(&round_state);
 
             println!(
                 "@@@ Your sum: {}, house sum: {}",

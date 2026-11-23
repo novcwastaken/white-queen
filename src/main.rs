@@ -385,6 +385,9 @@ fn main() {
 
     // Game loop (until exit)
     'game_ongoing: while is_game_ongoing {
+        // Reset round state
+        round_state = RoundState::Ongoing;
+
         // Clear & title
         clear_screen();
         println!("{}", banner);

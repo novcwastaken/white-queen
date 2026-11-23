@@ -1,8 +1,6 @@
-use clearscreen::clear;
 use colored::Colorize;
 use rand::{random_bool, random_range};
 use std::{env, error::Error, fmt, io, io::Write};
-use strip_indent::strip_indent;
 
 #[derive(Debug)]
 enum InvalidArgError {
@@ -375,7 +373,7 @@ fn main() {
     let mut balance: i32 = bankroll;
     let mut current_wager: i32;
 
-    let mut round_state: RoundState = RoundState::Ongoing;
+    let mut round_state: RoundState;
     let mut is_game_ongoing: bool = true;
 
     // Welcome
@@ -541,11 +539,40 @@ fn main() {
             println!("{}", banner);
             println!("{}", "ROUND OVER!".magenta().bold());
 
-            // Start dealing cards for house
-            // TODO: If house busts, player gets double the wager back
+            // Update round state for showdown (player bust is already handled at the hit action)
+            if round_state == RoundState::PlayerBust {
+                println!("@@@ player bust, you fucking suck bootycheeks lmao");
+            } else {
+                // Deal the remaining cards for the house
+                while get_hand_sum(&house_hand) <= 17 {
+                    house_hand.push(generate_card(&mut used_cards));
+                }
 
-            // TODO: If equal, player gets the wager back
-            // TODO: If house's hand is higher, do nothing (player loses wager)
+                let player_hand_sum: u8 = get_hand_sum(&player_hand);
+                let house_hand_sum: u8 = get_hand_sum(&house_hand);
+
+                if house_hand_sum > 21 {
+                    round_state = RoundState::HouseBust;
+                } else if player_hand_sum == house_hand_sum {
+                    round_state = RoundState::Push;
+                } else if player_hand_sum > house_hand_sum {
+                    round_state = RoundState::PlayerWin;
+                } else if player_hand_sum < house_hand_sum {
+                    round_state = RoundState::HouseWin;
+                }
+            }
+
+            // Update the player's balance according to the round's outcome.
+            // Only the PlayerWin, HouseBust and Push variants need to be handled,
+            // since the wager is already deducted when it's entered. Therefore,
+            // when it's a push, the player gets their wager back, and if they win
+            // (either by having a greater sum than the house, or the house busting),
+            // they get back its double.
+            match round_state {
+                RoundState::PlayerWin | RoundState::HouseBust => balance += current_wager * 2,
+                RoundState::Push => balance += current_wager,
+                _ => (),
+            }
 
             dbg!(&round_state);
 
@@ -572,7 +599,7 @@ fn main() {
                 another_round_input = String::from(another_round_input.trim());
                 match another_round_input.to_lowercase().as_str() {
                     "y" | "" => {
-                        round_state = RoundState::Ongoing;
+                        // No need to reset the round state to ongoing, as it's already reset at the top of the loop
                         break 'round_ongoing;
                     }
                     "n" => {

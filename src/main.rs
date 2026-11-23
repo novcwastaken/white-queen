@@ -1,6 +1,7 @@
+use clearscreen::clear;
 use colored::Colorize;
 use rand::{random_bool, random_range};
-use std::{env, error::Error, fmt, io, io::Write};
+use std::{cmp, env, error::Error, fmt, io, io::Write};
 
 #[derive(Debug)]
 enum InvalidArgError {
@@ -14,7 +15,7 @@ enum PlayerAction {
     Hit,
     Stand,
     Double,
-    Split,
+    //Split, // Just don't
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,6 +49,9 @@ enum RoundState {
 
     // Both the player and the house have the same hand sum
     Push,
+
+    // The round is over
+    Over,
 }
 
 #[derive(Debug, PartialEq)]
@@ -374,6 +378,7 @@ fn main() {
     let mut current_wager: i32;
 
     let mut round_state: RoundState;
+    let mut game_end_type: Option<GameEndType> = None;
     let mut is_game_ongoing: bool = true;
 
     // Welcome
@@ -423,7 +428,7 @@ fn main() {
         //             rank: 1,
         //             suit: Suit::Clubs,
         //         };
-        //
+
         //         house_hand[0] = Card {
         //             rank: 10,
         //             suit: Suit::Diamonds,
@@ -494,6 +499,8 @@ fn main() {
             print_both_hands(&player_hand, &house_hand, false);
 
             await_enter();
+
+            round_state = RoundState::Over;
         }
 
         // Hitting loop (round loop)
@@ -582,6 +589,13 @@ fn main() {
                 get_hand_sum(&house_hand)
             );
 
+            balance = cmp::max(balance, 0);
+            if balance == 0 {
+                game_end_type = Some(GameEndType::PlayerBankrupt);
+            }
+        }
+
+        if round_state == RoundState::Over && game_end_type == None {
             // Prompt for new round
             println!();
 
@@ -601,18 +615,32 @@ fn main() {
                 match another_round_input.to_lowercase().as_str() {
                     "y" | "" => {
                         // No need to reset the round state to ongoing, as it's already reset at the top of the loop
-                        break 'round_ongoing;
+                        println!("@@@ another round accepted");
+                        //round_state = RoundState::Ongoing;
+                        //break 'game_ongoing;
+                        //break 'round_ongoing;
                     }
                     "n" => {
-                        // TODO: Update game exit type, handle exit at the bottom
-                        println!("@@@ user exited");
-                        is_game_ongoing = false;
-
-                        break 'round_ongoing;
+                        game_end_type = Some(GameEndType::PlayerQuit);
+                        break 'game_ongoing;
                     }
                     _ => (),
                 };
             }
         }
+
+        match game_end_type {
+            None => (),
+            Some(GameEndType::PlayerQuit) => {
+                clear_screen();
+                println!("@@@ player quit");
+            }
+            Some(GameEndType::PlayerBankrupt) => {
+                clear_screen();
+                println!("@@@ player bankrupt");
+            }
+        }
+
+        println!("@@@ cool end screen!!");
     }
 }

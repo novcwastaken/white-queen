@@ -1,4 +1,3 @@
-use clearscreen::clear;
 use colored::Colorize;
 use rand::{random_bool, random_range};
 use std::{cmp, env, error::Error, fmt, io, io::Write};
@@ -264,7 +263,7 @@ fn await_enter() {
 
 /// Shorthand for clearing the screen.
 fn clear_screen() {
-    clearscreen::clear().unwrap();
+    //clearscreen::clear().unwrap();
 }
 
 /// Shorthand for rendering and printing both the player and house hands.
@@ -589,6 +588,8 @@ fn main() {
                 get_hand_sum(&house_hand)
             );
 
+            round_state = RoundState::Over;
+
             balance = cmp::max(balance, 0);
             if balance == 0 {
                 game_end_type = Some(GameEndType::PlayerBankrupt);
@@ -640,7 +641,7 @@ fn main() {
                 println!("@@@ player bankrupt");
             }
         }
-
-        println!("@@@ cool end screen!!");
     }
+
+    println!("@@@ cool end screen!!");
 }

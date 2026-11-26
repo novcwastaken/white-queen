@@ -263,7 +263,7 @@ fn await_enter() {
 
 /// Shorthand for clearing the screen.
 fn clear_screen() {
-    //clearscreen::clear().unwrap();
+    clearscreen::clear().unwrap();
 }
 
 /// Shorthand for rendering and printing both the player and house hands.
@@ -418,15 +418,15 @@ fn main() {
         deal_new_hand(&mut house_hand, &mut used_cards);
 
         // * TEMP: Rig hands to test blackjack matching
-        //         player_hand[0] = Card {
-        //             rank: 10,
-        //             suit: Suit::Hearts,
-        //         };
-        //
-        //         player_hand[1] = Card {
-        //             rank: 1,
-        //             suit: Suit::Clubs,
-        //         };
+        player_hand[0] = Card {
+            rank: 10,
+            suit: Suit::Hearts,
+        };
+
+        player_hand[1] = Card {
+            rank: 1,
+            suit: Suit::Clubs,
+        };
 
         //         house_hand[0] = Card {
         //             rank: 10,
@@ -525,7 +525,6 @@ fn main() {
             match take_action_input() {
                 Some(PlayerAction::Hit) => {
                     player_hand.push(generate_card(&mut used_cards));
-                    println!("{}", render_hand(&player_hand, None));
 
                     // Bust
                     if get_hand_sum(&player_hand) > 21 {
@@ -601,9 +600,8 @@ fn main() {
             println!();
 
             let mut another_round_input: String = String::new();
-            while another_round_input.to_lowercase() != "y"
-                || another_round_input.to_lowercase() != "n"
-            {
+
+            'another_round_loop: while another_round_input != "y" && another_round_input != "n" {
                 print!("Another round? [Y/n]: ");
                 io::stdout().flush().unwrap();
 
@@ -612,14 +610,11 @@ fn main() {
                     .read_line(&mut another_round_input)
                     .expect("Failed to read input!");
 
-                another_round_input = String::from(another_round_input.trim());
-                match another_round_input.to_lowercase().as_str() {
+                another_round_input = String::from(another_round_input.trim().to_lowercase());
+                match another_round_input.as_str() {
                     "y" | "" => {
                         // No need to reset the round state to ongoing, as it's already reset at the top of the loop
-                        println!("@@@ another round accepted");
-                        //round_state = RoundState::Ongoing;
-                        //break 'game_ongoing;
-                        //break 'round_ongoing;
+                        break 'another_round_loop;
                     }
                     "n" => {
                         game_end_type = Some(GameEndType::PlayerQuit);
@@ -629,17 +624,17 @@ fn main() {
                 };
             }
         }
+    }
 
-        match game_end_type {
-            None => (),
-            Some(GameEndType::PlayerQuit) => {
-                clear_screen();
-                println!("@@@ player quit");
-            }
-            Some(GameEndType::PlayerBankrupt) => {
-                clear_screen();
-                println!("@@@ player bankrupt");
-            }
+    match game_end_type {
+        None => (),
+        Some(GameEndType::PlayerQuit) => {
+            clear_screen();
+            println!("@@@ player quit");
+        }
+        Some(GameEndType::PlayerBankrupt) => {
+            clear_screen();
+            println!("@@@ player bankrupt");
         }
     }
 

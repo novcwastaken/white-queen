@@ -418,15 +418,15 @@ fn main() {
         deal_new_hand(&mut house_hand, &mut used_cards);
 
         // * TEMP: Rig hands to test blackjack matching
-        //         player_hand[0] = Card {
-        //             rank: 10,
-        //             suit: Suit::Hearts,
-        //         };
-        //
-        //         player_hand[1] = Card {
-        //             rank: 1,
-        //             suit: Suit::Clubs,
-        //         };
+        player_hand[0] = Card {
+            rank: 10,
+            suit: Suit::Hearts,
+        };
+
+        player_hand[1] = Card {
+            rank: 1,
+            suit: Suit::Clubs,
+        };
 
         //         house_hand[0] = Card {
         //             rank: 10,

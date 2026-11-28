@@ -395,13 +395,14 @@ fn main() {
     await_enter();
 
     // Game loop (until exit)
-    'game_ongoing: while is_game_ongoing {
+    'game_ongoing: while is_game_ongoing && game_end_type == None {
         // Reset round state
         round_state = RoundState::Ongoing;
 
         // Clear & title
         clear_screen();
         println!("{}", banner);
+        println!("{}", "NEW ROUND".magenta().bold());
 
         // Print balance
         println!(
@@ -411,22 +412,22 @@ fn main() {
 
         // Take wager input
         current_wager = take_wager_input(balance);
-        balance -= current_wager;
+        balance = balance.saturating_sub(current_wager);
 
         // Deal hands
         deal_new_hand(&mut player_hand, &mut used_cards);
         deal_new_hand(&mut house_hand, &mut used_cards);
 
         // * TEMP: Rig hands to test blackjack matching
-        //         player_hand[0] = Card {
-        //             rank: 10,
-        //             suit: Suit::Hearts,
-        //         };
-        //
-        //         player_hand[1] = Card {
-        //             rank: 1,
-        //             suit: Suit::Clubs,
-        //         };
+        player_hand[0] = Card {
+            rank: 10,
+            suit: Suit::Hearts,
+        };
+
+        player_hand[1] = Card {
+            rank: 1,
+            suit: Suit::Clubs,
+        };
 
         //         house_hand[0] = Card {
         //             rank: 10,
@@ -464,14 +465,14 @@ fn main() {
                 RoundState::PlayerBlackjack => {
                     balance += current_wager * 2;
 
-                    println!("{}", "You have a blackjack!".green().bold());
+                    println!("{}", "YOU HAVE A BLACKJACK!".green().bold());
                     println!(
                         "You won {}, instantly getting back double your wager!",
                         format!("{} Doubloons", current_wager).cyan().bold()
                     );
                 }
                 RoundState::HouseBlackjack => {
-                    println!("{}", "The house has a blackjack!".red().bold());
+                    println!("{}", "THE HOUSE HAS A BLACKJACK!".red().bold());
                     println!(
                         "You lost your wager of {} instantly.",
                         format!("{} Doubloons", current_wager).cyan().bold()
@@ -482,7 +483,7 @@ fn main() {
 
                     println!(
                         "{}",
-                        "It's a push! Both you and the house have blackjacks."
+                        "IT'S A PUSH! BOTH YOU AND THE HOUSE HAVE BLACKJACKS."
                             .yellow()
                             .bold()
                     );
@@ -542,7 +543,7 @@ fn main() {
             // Showdown
             clear_screen();
             println!("{}", banner);
-            println!("{}", "ROUND OVER!".magenta().bold());
+            println!("{}", "@@@ ROUND OVER!".magenta().bold());
 
             // Update round state for showdown (player bust is already handled at the hit action)
             if round_state == RoundState::PlayerBust {
@@ -589,7 +590,6 @@ fn main() {
 
             round_state = RoundState::Over;
 
-            balance = cmp::max(balance, 0);
             if balance == 0 {
                 game_end_type = Some(GameEndType::PlayerBankrupt);
             }
@@ -626,8 +626,11 @@ fn main() {
         }
     }
 
+    // End screen
+    println!("{}", banner);
+
     match game_end_type {
-        None => (),
+        None => (), // This shouldn't happen
         Some(GameEndType::PlayerQuit) => {
             clear_screen();
             println!("@@@ player quit");
@@ -635,6 +638,7 @@ fn main() {
         Some(GameEndType::PlayerBankrupt) => {
             clear_screen();
             println!("@@@ player bankrupt");
+            await_enter();
         }
     }
 
